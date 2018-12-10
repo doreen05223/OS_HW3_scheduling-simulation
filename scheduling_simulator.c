@@ -63,10 +63,10 @@ void add(char* name, int Q_time, int pri, char* priority, char* quantum)
 	newnode->Quantum_time = Q_time;
 	newnode->Qeueing_time = 0;
 	newnode->pri=pri;
-    strcpy(newnode->name,name);
+    	strcpy(newnode->name,name);
 	strcpy(newnode->priority,priority);
 	strcpy(newnode->quantum,quantum);
-    strcpy(newnode->state, "TASK_READY");
+    	strcpy(newnode->state, "TASK_READY");
 
 	char *stack[9999];
 	getcontext(&newnode->task);
@@ -75,12 +75,12 @@ void add(char* name, int Q_time, int pri, char* priority, char* quantum)
 	newnode->task.uc_stack.ss_flags = 0;
 	newnode->task.uc_link = &end;
 
-    if(strcmp(name,"task1")==0)     makecontext(&newnode->task,task1,0);
-    else if(strcmp(name,"task2")==0)     makecontext(&newnode->task,task2,0);
-    else if(strcmp(name,"task3")==0)     makecontext(&newnode->task,task3,0);
-    else if(strcmp(name,"task4")==0)     makecontext(&newnode->task,task4,0);
-    else if(strcmp(name,"task5")==0)     makecontext(&newnode->task,task5,0);
-    else if(strcmp(name,"task6")==0)     makecontext(&newnode->task,task6,0);
+    	if(strcmp(name,"task1")==0)     makecontext(&newnode->task,task1,0);
+    	else if(strcmp(name,"task2")==0)     makecontext(&newnode->task,task2,0);
+    	else if(strcmp(name,"task3")==0)     makecontext(&newnode->task,task3,0);
+    	else if(strcmp(name,"task4")==0)     makecontext(&newnode->task,task4,0);
+    	else if(strcmp(name,"task5")==0)     makecontext(&newnode->task,task5,0);
+    	else if(strcmp(name,"task6")==0)     makecontext(&newnode->task,task6,0);
 	
 	newnode->next = NULL;
 	rear->next = newnode;
@@ -175,18 +175,11 @@ void showInfo()
 		printf("%-4d%-9s%-16s%-11d%-9s%s\n",tmpnode->pid,tmpnode->name,tmpnode->state,tmpnode->Qeueing_time,tmpnode->priority,tmpnode->quantum);
 		tmpnode = tmpnode->next;
 	}
-	tmpnode = lfront->lnext;
-	printf("*************Ready Queue***************\n");
-	printf("PID TaskName TaskState       QueingTime Priority TimeQuantum\n");
-	while(tmpnode != NULL) {
-		printf("%-4d%-9s%-16s%-11d%-9s%s\n",tmpnode->pid,tmpnode->name,tmpnode->state,tmpnode->Qeueing_time,tmpnode->priority,tmpnode->quantum);
-		tmpnode = tmpnode->lnext;
-	}
 }
 
 void shellMode()
 {
-		char command[10];
+	char command[10];
         char TASK_NAME[10];
         char tmp[100];
         char argument1[5];
@@ -215,14 +208,14 @@ void shellMode()
                                         else if(strcmp(PRIORITY,"L")==0)     pri=0;
                                 }
                                 else{
-									PRIORITY[0]='L';
-									pri=0;
-								}
+					PRIORITY[0]='L';
+					pri=0;
+				}
                         }
                         else{
-								TIME_QUANTUM[0]='S';
+				TIME_QUANTUM[0]='S';
                                 qTime=10;
-								PRIORITY[0]='L';
+				PRIORITY[0]='L';
                                 pri=0;
                         }
                         add(TASK_NAME, qTime, pri, PRIORITY, TIME_QUANTUM);
@@ -232,8 +225,7 @@ void shellMode()
                         removeTask(PID);
                 }
                 else if(strcmp(command,"start")==0){
-                        start_time();
-						printf("simulating...\n");
+			printf("simulating...\n");
                         swapcontext(&shell_mode,&start);
                 }
                 else if(strcmp(command,"ps")==0){
@@ -318,17 +310,6 @@ bool task_exist()
 	return 0;
 }
 
-void start_time()
-{
-	Node* tmpnode;
-	tmpnode = lfront->lnext;
-	while(tmpnode != NULL) {
-		//tmpnode->S_time = getCurrentTime();
-		tmpnode->Start_time = 0;
-		tmpnode = tmpnode ->lnext;
-	}
-}
-
 void termination()
 {
 	while(1) {
@@ -404,7 +385,7 @@ int main()
 	start.uc_stack.ss_size = 9999;
 	start.uc_stack.ss_flags = 0;
 	start.uc_link = NULL;
-    makecontext(&start,simulation,0);
+    	makecontext(&start,simulation,0);
 
 	shellMode();
 
