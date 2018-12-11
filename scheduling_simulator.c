@@ -20,9 +20,11 @@ void hw_wakeup_pid(int pid)
 {
 	Node* tmpnode;
 	tmpnode = front->next;
-	while(tmpnode != NULL && strcmp(tmpnode->state,"TASK_WAITING")==0) {
-		if(tmpnode->pid == pid)
-			add_ready_q(tmpnode);
+	while(tmpnode != NULL) {
+		if(tmpnode->pid == pid  && strcmp(tmpnode->state,"TASK_WAITING")==0){
+			if(strcmp(tmpnode->priority,"H")==0)	add_H_ready_q(tmpnode);
+			else	add_ready_q(tmpnode);
+		}
 		tmpnode = tmpnode ->next;
 	}
 	return;
@@ -35,7 +37,8 @@ int hw_wakeup_taskname(char *task_name)
 	tmpnode = front->next;
 	while(tmpnode != NULL) {
 		if(strcmp(tmpnode->name,task_name)==0 && strcmp(tmpnode->state,"TASK_WAITING")==0) {
-			add_ready_q(tmpnode);
+			if(strcmp(tmpnode->priority,"H")==0)	add_H_ready_q(tmpnode);
+			else	add_ready_q(tmpnode);
 			wake_num++;
 		}
 		tmpnode = tmpnode ->next;
@@ -85,7 +88,22 @@ void add(char* name, int Q_time, int pri, char* priority, char* quantum)
 	newnode->next = NULL;
 	rear->next = newnode;
 	rear = newnode;
-	add_ready_q(newnode);
+	if (pri==1)	add_H_ready_q(newnode);
+	else	add_ready_q(newnode);
+}
+
+void add_H_ready_q(Node* newnode)
+{
+	newnode->hnext = NULL;	
+	if(hfront == hrear) {
+		hfront->hnext = newnode;
+		hrear = newnode;
+	} else {
+		hrear->hnext = newnode;
+		hrear=newnode;
+	}
+	strcpy(newnode->state,"TASK_READY");
+	newnode->Start_time = 0;
 }
 
 void add_ready_q(Node* newnode)
@@ -99,8 +117,23 @@ void add_ready_q(Node* newnode)
 		lrear=newnode;
 	}
 	strcpy(newnode->state,"TASK_READY");
-	//newnode->S_time = getCurrentTime();
 	newnode->Start_time = 0;
+}
+
+Node* del_H_ready_q()
+{
+	Node* delhnode = hfront->hnext;
+	if(delhnode==NULL)
+		return NULL;
+	if(hfront->hnext == hrear) {
+		hrear = hfront;
+		hfront->hnext = NULL;
+	} else {
+		hfront->hnext = delhnode->hnext;
+	}
+	delhnode->hnext = NULL;
+	delhnode->Qeueing_time += 10;
+	return delhnode;
 }
 
 Node* del_ready_q()
@@ -115,11 +148,32 @@ Node* del_ready_q()
 		lfront->lnext = delnode->lnext;
 	}
 	delnode->lnext = NULL;
-	//renew Queueing time
-	//delnode->W_time +=(getCurrentTime()-delnode->S_time);
 	delnode->Qeueing_time += 10;
 	return delnode;
 }
+
+void rm_H_ready_q(int pid)
+{
+	Node* rmnode;
+	Node* tmpnode;
+	if(hfront->hnext == NULL)
+		return;
+	tmpnode = hfront;
+	while(tmpnode->hnext != NULL) {
+		rmnode = tmpnode->hnext;
+		if(rmnode->pid == pid && hfront->hnext->hnext == NULL) {
+			hfront->hnext=NULL;
+			hrear = hfront;
+			return;
+		} else if(rmnode->pid == pid) {
+			tmpnode->hnext = rmnode->hnext;
+			rmnode->hnext = NULL;
+			return;
+		}
+		tmpnode = tmpnode->hnext;
+	}
+}
+
 void rm_ready_q(int pid)
 {
 	Node* rmnode;
@@ -141,10 +195,12 @@ void rm_ready_q(int pid)
 		tmpnode = tmpnode->lnext;
 	}
 }
+
 void removeTask(int pid)
 {
 	Node* rmnode;
 	Node* tmpnode;
+	rm_H_ready_q(pid);
 	rm_ready_q(pid);
 	if(front->next == NULL) {
 		return;
@@ -161,18 +217,6 @@ void removeTask(int pid)
 			rmnode->next = NULL;
 			return;
 		}
-		tmpnode = tmpnode->next;
-	}
-}
-
-void showInfo()
-{
-	Node* tmpnode;
-	tmpnode = front->next;
-	printf("PID TaskName TaskState       QueingTime Priority TimeQuantum\n");
-	while(tmpnode != NULL) {
-		//if(strcmp(tmpnode->state,"TASK_WAITING")==0) tmpnode->W_time -= 10;
-		printf("%-4d%-9s%-16s%-11d%-9s%s\n",tmpnode->pid,tmpnode->name,tmpnode->state,tmpnode->Qeueing_time,tmpnode->priority,tmpnode->quantum);
 		tmpnode = tmpnode->next;
 	}
 }
@@ -229,7 +273,13 @@ void shellMode()
                         swapcontext(&shell_mode,&start);
                 }
                 else if(strcmp(command,"ps")==0){
-                        showInfo();
+			Node* tmpnode;
+			tmpnode = front->next;
+			printf("PID TaskName TaskState       QueingTime Priority TimeQuantum\n");
+			while(tmpnode != NULL) {
+				printf("%-4d%-9s%-16s%-11d%-9s%s\n",tmpnode->pid,tmpnode->name,tmpnode->state,tmpnode->Qeueing_time,tmpnode->priority,tmpnode->quantum);
+				tmpnode = tmpnode->next;
+			}
                 }
         }
 }
@@ -243,44 +293,61 @@ void handler(int sig)
 		Node* tmpnode;
 		tmpnode = front->next;
 		while(tmpnode != NULL) {
-			//printf("while pid: %d, W_time: %lld\n",tmpnode->pid,tmpnode->W_time);
 			if(!strcmp(tmpnode->state,"TASK_WAITING")) {
 				tmpnode->Suspend_time -= 10;//now->Quantum_time;
-				tmpnode->Qeueing_time +=  10;
-				//printf("if pid: %d, W_time: %lld\n",tmpnode->pid,tmpnode->W_time);
-				//wake up task
+				//tmpnode->Qeueing_time +=  10;
+				//change task from waiting to ready msec_10*10
 				if(tmpnode->Suspend_time <= 0){
-					//printf("into handler waiting\n");
-					add_ready_q(tmpnode);
+					if(strcmp(tmpnode->priority,"H")==0)	add_H_ready_q(tmpnode);
+					else	add_ready_q(tmpnode);
 				}
 			}
 			tmpnode = tmpnode->next;
 		}
 
-		add_ready_q(now);
-		Node* run_node = del_ready_q();
-		strcpy(run_node->state,"TASK_RUNNING");
-		now = run_node;
-		run_node->Quantum_time -= 10 ;
-		if(now->Quantum_time <= 0 && count==0) {
-			count=1;
-			//strcpy(now->state,"TASK_TERMINATED");Node* exitt;exitt=now;printf("exitt: %d\n",exitt->pid);
-			rm_ready_q(now->pid);
-			set_timer(run_node->Quantum_time);
-			swapcontext(&lrear->task,&end);			
+		if(strcmp(now->priority,"H")==0){
+			add_H_ready_q(now);
+			Node* run_node = del_H_ready_q();
+			strcpy(run_node->state,"TASK_RUNNING");
+			now = run_node;
+			run_node->Quantum_time -= 10 ;
+			//terminated and remove from readyQ
+			if(now->Quantum_time <= 0 && count==0) {
+				count=1;
+				rm_H_ready_q(now->pid);
+				set_timer(run_node->Quantum_time);
+				swapcontext(&hrear->task,&end);			
+			}
+			else {
+				set_timer(run_node->Quantum_time);
+				swapcontext(&hrear->task,&now->task);
+			}
 		}
-		else {
-			//printf("PID: %d\n",now->pid);
-			//printf("now->Q_time: %d\n",now->Q_time);
-			set_timer(run_node->Quantum_time);
-			swapcontext(&lrear->task,&now->task);
+
+		else{
+			add_ready_q(now);
+			Node* run_node = del_ready_q();
+			strcpy(run_node->state,"TASK_RUNNING");
+			now = run_node;
+			run_node->Quantum_time -= 10 ;
+			if(now->Quantum_time <= 0 && count==0) {
+				count=1;
+				rm_ready_q(now->pid);
+				set_timer(run_node->Quantum_time);
+				swapcontext(&lrear->task,&end);			
+			}
+			else {
+				set_timer(run_node->Quantum_time);
+				swapcontext(&lrear->task,&now->task);
+			}
 		}
 	}
 	//ctrl+Z
 	else if(sig==SIGTSTP){
 		printf("\n");
 		if(now!=NULL) {
-			add_ready_q(now);
+			if(strcmp(now->priority,"H")==0)	add_H_ready_q(now);
+			else	add_ready_q(now);
 			now = NULL;
 			set_timer(0);
 		}
@@ -292,19 +359,18 @@ void handler(int sig)
 void set_timer(int Q_time)
 {
 	new_value.it_value.tv_sec=0;
-	new_value.it_value.tv_usec=Q_time*1000;//2000000;
+	new_value.it_value.tv_usec=Q_time*1000;//1000000;
 	new_value.it_interval.tv_sec=0;
 	new_value.it_interval.tv_usec=0;
 	setitimer(ITIMER_REAL, &new_value, &old_value);
 }
 
-bool task_exist()
+int task_exist()
 {
 	Node* tmpnode;
 	tmpnode = front->next;
 	while(tmpnode != NULL) {
-		if(strcmp(tmpnode->state,"TASK_TERMINATED"))
-			return 1;
+		if(strcmp(tmpnode->state,"TASK_TERMINATED"))	return 1;
 		tmpnode = tmpnode ->next;
 	}
 	return 0;
@@ -317,6 +383,42 @@ void termination()
 		if(now == NULL) return;
 		strcpy(now->state,"TASK_TERMINATED");
 		now = NULL;
+
+		Node* checkhq;
+		checkhq = hfront->hnext;
+		//if high priorityQ has finished, run lowQ
+		if(checkhq==NULL){
+			while(1) {
+				if(task_exist()==0)	swapcontext(&start,&shell_mode);
+				
+				Node* run_node = del_ready_q();
+				//has task waiting
+				if(run_node == NULL) {  
+					usleep(10000000);
+					Node* tmpnode;
+					tmpnode = front->next;
+					while(tmpnode != NULL) {
+						printf("into L while\n");
+						if(strcmp(tmpnode->state,"TASK_WAITING")==0) {
+							tmpnode->Suspend_time-=10;
+							//tmpnode->Qeueing_time +=  10;
+							printf("waitL+10\n");
+							if(tmpnode->Suspend_time <= 0){
+								add_ready_q(tmpnode);
+							}
+						}
+						tmpnode = tmpnode ->next;
+					}
+				} else {
+					now = run_node;
+					strcpy(run_node->state,"TASK_RUNNING");
+					set_timer(run_node->Quantum_time);
+					swapcontext(&start,&run_node->task);
+				}
+			}
+			swapcontext(&end,&start);
+		}
+
 		swapcontext(&end,&start);
 	}
 }
@@ -324,10 +426,11 @@ void termination()
 void simulation()
 {
 	while(1) {
-		if(!task_exist())
-			swapcontext(&start,&shell_mode);
+		count=0;
+		if(task_exist()==0)	swapcontext(&start,&shell_mode);
 		
-		Node* run_node = del_ready_q();
+		//run High priority queue first
+		Node* run_node = del_H_ready_q();
 		//has task waiting
 		if(run_node == NULL) {  
 			usleep(10000000);
@@ -336,10 +439,9 @@ void simulation()
 			while(tmpnode != NULL) {
 				if(strcmp(tmpnode->state,"TASK_WAITING")==0) {
 					tmpnode->Suspend_time-=10;
-					tmpnode->Qeueing_time +=  10;
+					//tmpnode->Qeueing_time +=  10;
 					if(tmpnode->Suspend_time <= 0){
-						//printf("into simulation waiting\n");
-						add_ready_q(tmpnode);
+						add_H_ready_q(tmpnode);
 					}
 				}
 				tmpnode = tmpnode ->next;
@@ -357,7 +459,7 @@ int main()
 {
 	//signal handler
 	struct sigaction act;
-	act.sa_handler = handler;			//call handler function
+	act.sa_handler = handler;		//call handler function
 	sigemptyset(&act.sa_mask);
 	sigaddset(&act.sa_mask, SIGALRM);
 	sigaddset(&act.sa_mask, SIGTSTP);
@@ -368,6 +470,8 @@ int main()
 	//creat queue
 	front = rear = (Node*)malloc(sizeof(Node));
 	front->next = rear->next = NULL;
+	hfront = hrear = (Node*)malloc(sizeof(Node));
+	hfront->hnext = hrear->hnext = NULL;
 	lfront = lrear = (Node*)malloc(sizeof(Node));
 	lfront->lnext = lrear->lnext = NULL;
 
@@ -386,7 +490,7 @@ int main()
 	start.uc_stack.ss_flags = 0;
 	start.uc_link = NULL;
     	makecontext(&start,simulation,0);
-
+		
 	shellMode();
 
 	return 0;
