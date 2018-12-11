@@ -5,6 +5,8 @@ static ucontext_t shell_mode;
 static ucontext_t current;
 int PID=0;
 
+//The running task change its state to TASK_WAITING
+//Change the state of the suspended task to TASK_READY after msec_10*10ms
 void hw_suspend(int msec_10)
 {
 	set_timer(0);
@@ -16,6 +18,7 @@ void hw_suspend(int msec_10)
 	return;
 }
 
+//Change the state of task PID from TASK_WAITING to TASK_READY
 void hw_wakeup_pid(int pid)
 {
 	Node* tmpnode;
@@ -30,6 +33,7 @@ void hw_wakeup_pid(int pid)
 	return;
 }
 
+//Change the state of all the tasks with task_name from TASK_WAITING to TASK_READY
 int hw_wakeup_taskname(char *task_name)
 {
 	Node* tmpnode;
@@ -43,16 +47,17 @@ int hw_wakeup_taskname(char *task_name)
 		}
 		tmpnode = tmpnode ->next;
 	}
-	return wake_num;
+	return wake_num;	//Return how many tasks are waken up
 }
 
+//Create task task_name
 int hw_task_create(char *task_name)
 {
 	if(strcmp(task_name,"task1")==0 || strcmp(task_name,"task2")==0 || strcmp(task_name,"task3")==0 || 
 	strcmp(task_name,"task4")==0 || strcmp(task_name,"task5")==0 || strcmp(task_name,"task6")==0){
 		add(task_name,10,0,"L","S");
-		return PID; // the pid of created task name
-	} else	return -1;
+		return PID;	//Return PID of the created task
+	} else	return -1;	//Return -1 if there is no function named task_name
 }
 
 void add(char* name, int Q_time, int pri, char* priority, char* quantum)
