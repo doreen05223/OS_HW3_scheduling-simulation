@@ -137,7 +137,7 @@ Node* del_H_ready_q()
 	} else {
 		hfront->hnext = delhnode->hnext;
 	}
-	delhnode->hnext = NULL;
+	delhnode->hnext = hfront->hnext;//NULL;
 	delhnode->Qeueing_time += 10;
 	return delhnode;
 }
@@ -153,7 +153,7 @@ Node* del_ready_q()
 	} else {
 		lfront->lnext = delnode->lnext;
 	}
-	delnode->lnext = NULL;
+	delnode->lnext = lfront->lnext;//NULL;
 	delnode->Qeueing_time += 10;
 	return delnode;
 }
@@ -316,17 +316,6 @@ void handler(int sig)
 			Node* run_node = del_H_ready_q();
 			strcpy(run_node->state,"TASK_RUNNING");
 			now = run_node;
-			/*if(strcmp(run_node->name,"task1")==0){
-				run_node->Quantum_time -= 10 ;
-				//terminated and remove from readyQ
-				if(now->Quantum_time <= 0 && count==0) {
-					printf("in task1 H\n");
-					count=1;
-					rm_H_ready_q(now->pid);
-					set_timer(run_node->Quantum_time);
-					swapcontext(&hrear->task,&end);			
-				}
-			}*/
 			set_timer(now->Quantum_time);
 			swapcontext(&hrear->task,&now->task);
 			
@@ -337,17 +326,6 @@ void handler(int sig)
 			Node* run_node = del_ready_q();
 			strcpy(run_node->state,"TASK_RUNNING");
 			now = run_node;
-			/*if(strcmp(run_node->name,"task1")==0){
-				run_node->Quantum_time -= 10 ;
-				//terminated and remove from readyQ
-				if(now->Quantum_time <= 0 && count==0) {
-					printf("in task1\n");
-					count=1;
-					rm_ready_q(now->pid);
-					set_timer(run_node->Quantum_time);
-					swapcontext(&lrear->task,&end);			
-				}
-			}*/
 			set_timer(now->Quantum_time);
 			swapcontext(&lrear->task,&now->task);
 		}
@@ -395,45 +373,45 @@ void termination()
 		now = NULL;
 
 		Node* checkhq;
-        checkhq = hfront->hnext;
-        //if high priorityQ has finished, run lowQ
-        if(checkhq==NULL){
-            while(1) {
-		count=0;
-                if(task_exist()==0) swapcontext(&end,&shell_mode);
+       	 	checkhq = hfront->hnext;
+        	//if high priorityQ has finished, run lowQ
+        	if(checkhq==NULL){
+           	while(1) {
+			count=0;
+                	if(task_exist()==0) swapcontext(&end,&shell_mode);
                 
-                Node* checklq;
-                checklq = lfront->lnext;
-                //if no low priorityQ, run lowQ
-                if(checklq==NULL){
-                    swapcontext(&end,&shell_mode);
-                }
-                else{
-                    Node* run_node = del_ready_q();
-                    //has task waiting
-                    if(run_node == NULL) {  
-                        usleep(10000000);
-                        Node* tmpnode;
-                        tmpnode = front->next;
-                        while(tmpnode != NULL) {
-                            if(strcmp(tmpnode->state,"TASK_WAITING")==0) {
-                                tmpnode->Suspend_time-=10;
-                                //tmpnode->Qeueing_time +=  10;
-                                if(tmpnode->Suspend_time <= 0){
-                                    add_ready_q(tmpnode);
-                                }
-                            }
-                            tmpnode = tmpnode ->next;
-                        }
-                    } else {
-                        now = run_node;
-                        strcpy(run_node->state,"TASK_RUNNING");
-                        set_timer(run_node->Quantum_time);
-                        swapcontext(&end,&run_node->task);
-                    }
-                }
-            }
-            //swapcontext(&end,&start);
+                	Node* checklq;
+                	checklq = lfront->lnext;
+                	//if no low priorityQ, run lowQ
+	                if(checklq==NULL){
+        	            swapcontext(&end,&shell_mode);
+                	}
+	                else{
+        	            Node* run_node = del_ready_q();
+                	    //has task waiting
+	                    if(run_node == NULL) {  
+        	                usleep(10000000);
+                	        Node* tmpnode;
+                        	tmpnode = front->next;
+	                        while(tmpnode != NULL) {
+        	                    if(strcmp(tmpnode->state,"TASK_WAITING")==0) {
+                	                tmpnode->Suspend_time-=10;
+                        	        //tmpnode->Qeueing_time +=  10;
+                                	if(tmpnode->Suspend_time <= 0){
+	                                    add_ready_q(tmpnode);
+        	                        }
+                	            }
+                        	    tmpnode = tmpnode ->next;
+                        	}
+	                    } else {
+        	                now = run_node;
+                	        strcpy(run_node->state,"TASK_RUNNING");
+                        	set_timer(run_node->Quantum_time);
+	                        swapcontext(&end,&run_node->task);
+        	            }
+                	}
+            	}
+	        //swapcontext(&end,&start);
         }
 		swapcontext(&end,&start);
 	}
